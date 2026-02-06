@@ -56,7 +56,9 @@ def llm(messages):
 #     "host": "localhost",
 #     "port": 5432,
 # }
-SQLITE_DB_PATH = r"D:\excel_rag_poc_sqlite\converted.db"
+BASE_DIR = Path(__file__).resolve().parent.parent
+SQLITE_DB_PATH = BASE_DIR /"converted.db"
+
 
 # =========================
 # SCHEMA CONTRACT (LOCKED)
