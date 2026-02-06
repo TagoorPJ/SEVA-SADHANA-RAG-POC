@@ -657,6 +657,10 @@ section[data-testid="stMain"] > div {
     width: 100%;
     overflow: hidden;
 }
+/* Hide Streamlit Cloud owner floating panel */
+div[style*="position: fixed"][style*="bottom"] {
+    display: none !important;
+}
 
 
 </style>
