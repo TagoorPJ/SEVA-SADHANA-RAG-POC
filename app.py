@@ -7,7 +7,15 @@ from agents import visitor_agent, hierarchy_agent, beneficiary_agent
 # LOAD ENVIRONMENT
 # =========================
 load_dotenv()
-
+def get_secret(key: str):
+    if key in st.secrets:
+        return st.secrets[key]
+    return os.getenv(key)
+ 
+AZURE_API_KEY = get_secret("AZURE_OPENAI_API_KEY")
+AZURE_ENDPOINT = get_secret("AZURE_OPENAI_ENDPOINT")
+AZURE_VERSION = get_secret("AZURE_OPENAI_API_VERSION")
+AZURE_DEPLOYMENT = get_secret("AZURE_OPENAI_DEPLOYMENT_NAME")
 # =========================
 # PAGE SETUP
 # =========================
