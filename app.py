@@ -55,7 +55,7 @@ st.set_page_config(
     page_icon="💬",
     layout="centered"
 )
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent
 Image_path = BASE_DIR /"BJP (5).png"
 
 set_bg(Image_path)
