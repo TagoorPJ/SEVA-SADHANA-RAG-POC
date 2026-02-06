@@ -2,7 +2,9 @@ import os
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from agents import visitor_agent, hierarchy_agent, beneficiary_agent    
+from agents import visitor_agent, hierarchy_agent, beneficiary_agent
+from pathlib import Path
+    
 # =========================
 # LOAD ENVIRONMENT
 # =========================
@@ -12,6 +14,35 @@ def get_secret(key: str):
         return st.secrets[key]
     return os.getenv(key)
  
+import base64
+
+def set_bg(image_file):
+    with open(image_file, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode()
+
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{encoded}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }}
+
+        /* Make containers transparent */
+        .main,
+        [data-testid="stAppViewContainer"],
+        section[data-testid="stMain"],
+        .main .block-container {{
+            background: transparent !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
 AZURE_API_KEY = get_secret("AZURE_OPENAI_API_KEY")
 AZURE_ENDPOINT = get_secret("AZURE_OPENAI_ENDPOINT")
 AZURE_VERSION = get_secret("AZURE_OPENAI_API_VERSION")
@@ -24,65 +55,69 @@ st.set_page_config(
     page_icon="💬",
     layout="centered"
 )
+BASE_DIR = Path(__file__).resolve().parent.parent
+Image_path = BASE_DIR /"BJP (5).png"
+
+set_bg(Image_path)
+
 
 # Enhanced CSS for chat interface - Blue and White Theme
 st.markdown("""
 <style>
     .stApp {
-        background-color: #ffffff !important;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
     }
 
-    .main {
-        background-color: #ffffff !important;
-    }
+/* ===== MULTICOLOR HEADER (ORANGE → GREEN) ===== */
+[data-testid="stHeader"] {
+    background: linear-gradient(
+        90deg,
+        #ff7a00 0%,
+        #ff9a1f 20%,
+        #ffb347 40%,
+        #22c55e 70%,
+        #166534 100%
+    ) !important;
 
-    [data-testid="stAppViewContainer"] {
-        background-color: #ffffff !important;
-    }
+    backdrop-filter: blur(6px);
+    border-bottom: 2px solid rgba(255,255,255,0.25) !important;
+    z-index: 1000 !important;
+    position: sticky !important;
+    top: 0 !important;
+}
 
-    [data-testid="stHeader"] {
-        background-color: rgba(255, 255, 255, 0.95) !important;
-        backdrop-filter: blur(10px);
-        position: sticky !important;
-        top: 0 !important;
-        z-index: 999 !important;
-    }
-
-    section[data-testid="stMain"] {
-        background-color: #ffffff !important;
-    }
-
+    .main,
+    [data-testid="stAppViewContainer"],
+    section[data-testid="stMain"],
     .main .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 0.5rem !important;
-        max-width: 900px;
-        background-color: #ffffff !important;
+        background: transparent !important;
     }
 
-    .sticky-header {
-        position: sticky;
-        top: 0;
-        background-color: rgba(255, 255, 255, 0.98);
-        backdrop-filter: blur(10px);
-        z-index: 100;
-        padding: 1rem 0;
-        margin-bottom: 2rem;
+    /* ================= REMOVE DEFAULT STREAMLIT PADDING ================= */
+    .main .block-container {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
     }
 
-    /* ==============================
-       SIDEBAR IMPROVEMENT START
-       ============================== */
+    /* Adjust content when sidebar is open */
+    [data-testid="stSidebar"][aria-expanded="true"] ~ div [data-testid="stMain"] {
+        margin-left: 0 !important;
+    }
+
+    /* ================= SIDEBAR ================= */
 
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%) !important;
+        background: linear-gradient(180deg, #ff7a00 0%, #166534 100%) !important;
         padding-top: 20px !important;
     }
 
-    [data-testid="stSidebar"] * {
-        color: white !important;
-    }
 
-    /* Section headers */
     [data-testid="stSidebar"] h3 {
         font-size: 18px !important;
         font-weight: 700 !important;
@@ -90,15 +125,13 @@ st.markdown("""
         margin-bottom: 10px;
     }
 
-    /* Divider lines */
     [data-testid="stSidebar"] hr {
         border-color: rgba(255, 255, 255, 0.18) !important;
         margin: 18px 0 !important;
     }
 
-    /* Clear chat button improved */
     [data-testid="stSidebar"] .stButton > button {
-        background: rgba(255,255,255,0.12) !important;
+        background: #ff7a00 !important;
         border: 1px solid rgba(255,255,255,0.28) !important;
         border-radius: 12px !important;
         padding: 10px 14px !important;
@@ -111,64 +144,50 @@ st.markdown("""
         transform: translateY(-1px);
         border-color: rgba(255,255,255,0.45) !important;
     }
+    /* OPEN STATE (sidebar visible) */
+[data-testid="stSidebarCollapseButton"] {
+    background-color: #ff7a00 !important;
+    border: 1px solid #cc6400 !important;
+    border-radius: 8px !important;
+}
 
-    /* Sidebar info card look */
-    .sidebar-card {
-        background: rgba(255,255,255,0.08);
-        padding: 14px 16px;
-        border-radius: 12px;
-        margin-top: 10px;
-        margin-bottom: 12px;
-        border: 1px solid rgba(255,255,255,0.15);
-    }
+/* HOVER EFFECT */
+[data-testid="stSidebarCollapseButton"]:hover,
+[data-testid="collapsedControl"]:hover {
+    background-color: #e66a00 !important;
+}
 
-    .sidebar-card:hover {
-        background: rgba(255,255,255,0.12);
-    }
 
-    /* ==============================
-       SIDEBAR IMPROVEMENT END
-       ============================== */
-
-    h1 {
-        text-align: center;
-        color: #1e1e1e !important;
-        margin-bottom: 0.5rem !important;
-        font-size: 2.5rem !important;
-        font-weight: 600 !important;
-    }
-
-    .subtitle {
-        text-align: center;
-        color: #6c757d !important;
-        margin-bottom: 1rem !important;
-        font-size: 1rem;
-    }
-
-    [data-testid="stBottom"] {
-        background-color: #ffffff !important;
-        border-top: 1px solid #e8e8e8 !important;
-    }
+    /* ================= CHAT INPUT ================= */
 
     .stChatInput > div {
         border-radius: 25px !important;
         background-color: #ffffff !important;
-        border: 2px solid #667eea !important;
+        border: 2px solid #ff7a00 !important;
         padding: 0.3rem 0.8rem !important;
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
         min-height: 45px !important;
         max-height: 45px !important;
+        margin: 0 !important;
     }
 
     .stChatInput input, .stChatInput textarea {
         background-color: #ffffff !important;
-        color: #1e1e1e !important;
+        color: #166534 !important;
         border: none !important;
         font-size: 0.95rem !important;
+        caret-color: #ff7a00 !important;
+    }
+
+    .stChatInput textarea::placeholder,
+    .stChatInput input::placeholder {
+        color: #166534 !important;
+        opacity: 1 !important;
+        font-weight: 500;
     }
 
     .stChatInput button {
-        background-color: #667eea !important;
+        background-color: #166534 !important;
         color: white !important;
         border: none !important;
         border-radius: 50% !important;
@@ -176,16 +195,10 @@ st.markdown("""
         height: 32px !important;
     }
 
-    .stChatFloatingInputContainer {
-        bottom: 20px !important;
-    }
-
-    [data-testid="stBottom"] {
-        padding-bottom: 20px !important;
-    }
+    /* ================= CHAT BUBBLES ================= */
 
     .user-message {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #ff7a00 0%, #ffb347 100%);
         color: white !important;
         padding: 12px 18px;
         border-radius: 18px 18px 4px 18px;
@@ -198,119 +211,26 @@ st.markdown("""
     }
 
     .assistant-message {
-        background-color: #f8f9fa !important;
-        color: #1e1e1e !important;
+        background-color: rgba(255,255,255,0.9) !important;
+        color: #166534 !important;
         padding: 12px 18px;
         border-radius: 18px 18px 18px 4px;
         margin: 8px 0;
         margin-right: 20%;
-        border: 1px solid #e0e0e0;
+        border: 1px solid #166534;
         display: inline-block;
         max-width: 75%;
         float: left;
         clear: both;
     }
 
-    .message-container {
-        display: block;
-        overflow: auto;
-        margin-bottom: 10px;
-    }
-
-    [data-testid="stMainBlockContainer"] {
-        padding-top: 2rem !important;
-        padding-bottom: 1rem !important;
-    }
-
-    [data-testid="stSidebarCollapseButton"] {
-        background-color: #2a5298 !important;
-        border: 1px solid #1e3c72 !important;
-        border-radius: 6px !important;
-    }
-
-    [data-testid="stSidebarCollapseButton"] svg {
-        fill: white !important;
-        color: white !important;
-    }
-
-    [data-testid="collapsedControl"] {
-        background-color: #2a5298 !important;
-        border: 1px solid #1e3c72 !important;
-        border-radius: 6px !important;
-    }
-
-    [data-testid="collapsedControl"] svg {
-        fill: white !important;
-        color: white !important;
-    }
-
-    [data-testid="stSidebarCollapseButton"]:hover,
-    [data-testid="collapsedControl"]:hover {
-        background-color: #1e3c72 !important;
-    }
-
-    header button {
-        background-color: #2a5298 !important;
-        border: 1px solid #1e3c72 !important;
-        border-radius: 8px !important;
-        padding: 6px !important;
-    }
-
-    header button svg {
-        color: white !important;
-        fill: white !important;
-    }
-
-    header button:hover {
-        background-color: #1e3c72 !important;
-    }
-
-    .stChatInput textarea,
-    .stChatInput input {
-        caret-color: #2a5298 !important;
-    }
-
-    .stChatInput textarea:focus,
-    .stChatInput input:focus {
-        caret-color: #2a5298 !important;
-    }
-
-    .stChatInput textarea,
-    .stChatInput input {
-        color: #1e1e1e !important;
-        background-color: #ffffff !important;
-    }
-
-    .stSpinner p {
-        color: #2a5298 !important;
-        font-weight: 600;
-    }
-
-    .stChatInput textarea::placeholder,
-    .stChatInput input::placeholder {
-        color: #2a5298 !important;
-        opacity: 1 !important;
-        font-weight: 500;
-    }
-
-    .stChatInput textarea,
-    .stChatInput input {
-        color: #1e3a8a !important;
-    }
-
-    .stSpinner > div {
-        border-top-color: #2a5298 !important;
-    }
-
-    .fixed-title h1:hover {
-        color: #2a5298 !important;
-    }
+    /* ================= TOP TITLE ================= */
 
     .top-title {
         position: fixed;
-        top: 14px;
+        top: 24px;
         left: 70px;
-        z-index: 1000;
+        z-index: 999999;
         transition: left 0.25s ease;
     }
 
@@ -318,42 +238,99 @@ st.markdown("""
         left: 300px;
     }
 
-    .top-title .capsule {
-        display: inline-block;
-        padding: 6px 14px;
-        border-radius: 18px;
-        border: 2px solid #2a5298;
-        background: #f5f9ff;
-        font-size: 16px;
-        font-weight: 600;
-        color: #1f2937;
-        letter-spacing: 0.2px;
-        box-shadow: 0 3px 8px rgba(42,82,152,0.15);
-    }
+/* TITLE CAPSULE INSIDE HEADER */
+.top-title {
+    position: fixed;
+    top: 14px;              /* inside header */
+    left: 80px;             /* after sidebar arrow */
+    z-index: 1001;
+}
 
-    .welcome-box {
-        margin-top: 60px;
-        margin-bottom: 30px;
-        padding: 28px 32px;
-        border-radius: 18px;
-        background: linear-gradient(135deg, #f5f9ff, #eef4ff);
-        border: 2px solid #2a5298;
-        text-align: center;
-        box-shadow: 0 8px 25px rgba(42,82,152,0.12);
-        animation: fadeIn 0.6s ease;
-    }
+/* Capsule style */
+.top-title .capsule {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 6px 16px;
+    border-radius: 999px;
+
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(8px);
+
+    border: 1.5px solid rgba(255,255,255,0.35);
+
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+}
+
+/* AI mini pill inside capsule */
+.agent-pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: white;
+    color: #ff7a00;
+}
+    /* ================= WELCOME BOX ================= */
+
+.welcome-box {
+    margin-top: 28vh;   /* controls vertical position */
+    margin-bottom: 0px;
+    margin-left: auto;
+    margin-right: auto;
+
+    padding: 28px 32px;
+    border-radius: 18px;
+
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(3px);
+
+    border: 1.5px solid #ff7a00;
+    text-align: center;
+
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+
+    max-width: 700px;
+    width: calc(100% - 40px);
+}
 
     .welcome-title {
         font-size: 26px;
         font-weight: 700;
-        color: #2a5298;
+        color: #ff7a00;
         margin-bottom: 8px;
     }
 
     .welcome-sub {
         font-size: 15px;
-        color: #374151;
+        color: #166534;
         line-height: 1.6;
+    }
+
+    /* ================= SMALL ELEMENTS ================= */
+
+    .agent-pill {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 6px;
+        background: #ff7a00;
+        color: white;
+        border-radius: 6px;
+        margin-right: 8px;
+    }
+
+    .stSpinner p {
+        color: #ff7a00 !important;
+        font-weight: 600;
+    }
+
+    .stSpinner > div {
+        border-top-color: #ff7a00 !important;
     }
 
     @keyframes fadeIn {
@@ -366,37 +343,229 @@ st.markdown("""
             transform: translateY(0px);
         }
     }
-    /* Increase ONLY emoji size */
-.agent-pill {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 6px;
-    background: #2a5298;
-    color: white;
-    border-radius: 6px;
-    margin-right: 8px;
+
+    .sidebar-header {
+        background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05));
+        padding: 16px 14px;
+        border-radius: 14px;
+        margin-bottom: 14px;
+        border: 1px solid rgba(255,255,255,0.25);
+        backdrop-filter: blur(6px);
+        box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+    }
+
+    .sidebar-header-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 2px;
+    }
+
+    .sidebar-header-sub {
+        font-size: 12px;
+        opacity: 0.85;
+    }
+    
+    /* ===== SIDEBAR TOGGLE BUTTON - CLOSED STATE ===== */
+
+/* Top-left arrow button (actual one) */
+header [data-testid="collapsedControl"] {
+    background-color: #ff7a00 !important;
+    border: 1px solid #cc6400 !important;
+    border-radius: 8px !important;
 }
-/* ===== SIDEBAR TOP TITLE CARD ===== */
+
+/* Icon color */
+header [data-testid="collapsedControl"] svg {
+    color: white !important;
+    fill: white !important;
+}
+
+/* Hover */
+header [data-testid="collapsedControl"]:hover {
+    background-color: #e66a00 !important;
+}
+
+/* When sidebar is open */
+header [data-testid="stSidebarCollapseButton"] {
+    background-color: #ff7a00 !important;
+    border: 1px solid #cc6400 !important;
+    border-radius: 8px !important;
+}
+
+header [data-testid="stSidebarCollapseButton"] svg {
+    color: white !important;
+    fill: white !important;
+}
+
+header [data-testid="stSidebarCollapseButton"]:hover {
+    background-color: #e66a00 !important;
+}
+/* ===== FORCE ORANGE WHEN SIDEBAR IS CLOSED ===== */
+
+/* Closed state button (top-left arrow when sidebar hidden) */
+[data-testid="collapsedControl"] {
+    background-color: #ff7a00 !important;
+    border: 1px solid #cc6400 !important;
+    border-radius: 8px !important;
+}
+
+/* Icon */
+[data-testid="collapsedControl"] svg {
+    color: #ff7a00 !important;
+    fill: #ff7a00 !important;
+}
+
+/* Hover */
+[data-testid="collapsedControl"]:hover {
+    background-color: #e66a00 !important;
+}
+/* Change mouse pointer to orange theme */
+* {
+    cursor: url('https://cur.cursors-4u.net/cursors/cur-13/cur1160.cur'), auto;
+}
+/* ===== FORCE ORANGE BACKGROUND WHEN SIDEBAR IS CLOSED ===== */
+
+/* Outer container that stays grey */
+section[data-testid="collapsedControl"] {
+    background-color: #ff7a00 !important;
+    border-radius: 10px !important;
+}
+
+/* Inner button */
+section[data-testid="collapsedControl"] button {
+    background-color: #ff7a00 !important;
+    border: none !important;
+}
+
+/* Icon color */
+section[data-testid="collapsedControl"] svg {
+    color: white !important;
+    fill: white !important;
+}
+
+/* Hover */
+section[data-testid="collapsedControl"]:hover {
+    background-color: #e66a00 !important;
+}
+[data-testid="collapsedControl"] {
+    opacity: 0;
+    pointer-events: none;
+}
+/* === REMOVE LARGE RESERVED SPACE BELOW CHAT INPUT === */
+
+.stChatFloatingInputContainer {
+    bottom: 8px !important;
+    padding-bottom: 0px !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+}
+
+/* Kill the dark background layer */
+[data-testid="stBottom"] {
+    background: transparent !important;
+    height: 0px !important;
+    min-height: 0px !important;
+    padding: 0px !important;
+    margin: 0px !important;
+}
+
+/* Remove extra spacer Streamlit inserts */
+[data-testid="stBottom"] > div {
+    height: 0px !important;
+    padding: 0px !important;
+    margin: 0px !important;
+}
+
+/* This is the actual spacer creating the black band */
+.stChatFloatingInputContainer::before {
+    display: none !important;
+}
+/* ================= SIDEBAR TOP SPACE FIX ================= */
+
+/* Do NOT move the whole sidebar (keeps toggle button safe) */
+section[data-testid="stSidebar"] > div {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* Remove Streamlit's internal top offset and lift only content */
+section[data-testid="stSidebar"] .block-container {
+    padding-top: 0px !important;
+    margin-top: -35px !important;  /* Adjust between -20 to -35 if needed */
+}
+
+/* Remove hidden spacer sometimes injected by Streamlit */
+section[data-testid="stSidebar"]::before {
+    display: none !important;
+}
 .sidebar-header {
-    background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05));
-    padding: 16px 14px;
-    border-radius: 14px;
-    margin-bottom: 14px;
-    border: 1px solid rgba(255,255,255,0.25);
-    backdrop-filter: blur(6px);
-    box-shadow: 0 6px 14px rgba(0,0,0,0.12);
+    position: relative;
+    top: -30px;        /* lift upward */
+    margin-left: 18px; /* push right away from toggle button */
+}
+/* ===== STOP PAGE SCROLL COMPLETELY ===== */
+html, body, .stApp {
+    height: 100%;
+    overflow: hidden !important;
 }
 
-.sidebar-header-title {
-    font-size: 18px;
-    font-weight: 700;
-    color: white;
-    margin-bottom: 2px;
+/* Let Streamlit manage layout naturally */
+[data-testid="stAppViewContainer"] {
+    overflow: hidden !important;
+    width: 100% !important;
+    padding: 0 !important;
 }
 
-.sidebar-header-sub {
-    font-size: 12px;
-    opacity: 0.85;
+/* Fix main content area to eliminate black space */
+section[data-testid="stMain"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+}
+
+/* ===== CHAT MESSAGE CONTAINER - FIXED PADDING/BORDER ISSUE ===== */
+[data-testid="stChatMessageContainer"] {
+    margin-top: 140px !important;
+    padding-left: 30px !important;
+    padding-right: 30px !important;
+    padding-bottom: 20px !important;
+    height: calc(100vh - 260px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Smooth scroll behavior */
+[data-testid="stChatMessageContainer"] {
+    scroll-behavior: smooth;
+}
+
+/* Keep input fixed at bottom */
+.stChatFloatingInputContainer {
+    position: fixed !important;
+    bottom: 20px !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    padding-left: 30px !important;
+    padding-right: 30px !important;
+    box-sizing: border-box !important;
+}
+
+/* Make the page height stable */
+section[data-testid="stMain"] > div {
+    padding-bottom: 100px !important;
+    width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* Ensure messages container doesn't overflow horizontally */
+.message-container {
+    width: 100%;
+    overflow: hidden;
 }
 
 
