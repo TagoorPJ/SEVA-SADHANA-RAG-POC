@@ -315,7 +315,7 @@ Output format:
 # =========================
 def generate_sql(plan: dict) -> str:
     system_prompt = f"""
-You generate SQLite SELECT queries
+You generate SQLite SELECT queries.
 
 Schema:
 {SCHEMA_TEXT}
@@ -324,52 +324,65 @@ CRITICAL RULES:
 - Use ONLY the schema
 - READ-ONLY queries only
 - NO SELECT *
-- Return ONLY valid SQL ending with semicolon
-- Do NOT include markdown or explanations
+- Return ONLY valid SQLite SQL ending with semicolon
+- Do NOT include markdown
+- Do NOT include explanations
+- Return COMPLETE SQL query
+- Handle NULL values safely using IFNULL()
+
+TEXT MATCHING RULES (SQLITE):
+- SQLite does NOT support ILIKE
+- For case-insensitive matching ALWAYS use:
+  LOWER(column_name) LIKE LOWER('%text%')
+
+Example:
+WHERE LOWER(assembly_name) LIKE LOWER('%163-Limbayat%')
 
 ASSEMBLY FILTERING RULES:
-- Assembly name filters MUST use assembly_name
-- Use ILIKE with wildcards for text matching
+- Assembly filters MUST use assembly_name
+- Use LOWER(assembly_name) LIKE LOWER('%canonical_name%')
 - Use ONLY canonical assembly names
 - NEVER use raw user input directly
 
 CORRECT:
-WHERE assembly_name ILIKE '%163-Limbayat%'
+WHERE LOWER(assembly_name) LIKE LOWER('%163-Limbayat%')
 
 WRONG:
-WHERE assembly_name ILIKE '%limbayat area%'
-
-OTHER RULES:
-- Use ILIKE for all text comparisons
-- Prefer numeric IDs when grouping (ac_no, booth_no, ward_id)
-- Handle NULL values safely
-
-Rules:
-- Use ONLY the schema
-- No SELECT *
-- Read-only queries only
-- Return ONLY valid SQL with semicolon at the end
-- Do NOT include markdown formatting
-- Do NOT include explanations
-- Return COMPLETE SQL query
-- Instead of mass id you must need to take id columns for filtering and grouping
-- Use LOWER(column) LIKE LOWER('%text%') for case-insensitive search
-
+WHERE LOWER(assembly_name) LIKE LOWER('%limbayat area%')
 
 ASSEMBLY INCHARGE FILTERING RULES:
 - Incharge filters MUST use assembly_incharge
-- Use ILIKE with wildcards
+- Use LOWER(assembly_incharge) LIKE LOWER('%canonical_name%')
 - Use ONLY canonical incharge names
 - NEVER use raw user text
 
 CORRECT:
-WHERE assembly_incharge ILIKE '%Sangitaben Rajendrakumar Patil%'
+WHERE LOWER(assembly_incharge) LIKE LOWER('%Sangitaben Rajendrakumar Patil%')
 
 WRONG:
-WHERE assembly_incharge ILIKE '%patil madam%'
+WHERE LOWER(assembly_incharge) LIKE LOWER('%patil madam%')
+
+GROUPING RULES:
+- Prefer numeric IDs when grouping:
+  ac_no, booth_no, ward_id
+- Instead of mass id, use ID columns for filtering and grouping
+
+NULL SAFETY:
+- Use IFNULL(column,'') when applying text filters if needed
+
+OTHER RULES:
+- Use ONLY columns present in schema
+- No INSERT/UPDATE/DELETE
+- No SELECT *
+- No subqueries unless necessary
+- Use LIMIT when returning ranked results
 
 Example format:
-SELECT column1, COUNT(column2) FROM table_name GROUP BY column1;
+SELECT assembly_name, COUNT(booth_no) AS booth_count
+FROM hierarchy_master
+GROUP BY assembly_name
+ORDER BY booth_count DESC
+LIMIT 5;
 """
 
     content = llm([

@@ -143,7 +143,7 @@ def generate_plan(question: str) -> dict:
     You are a PostgreSQL query planner for a beneficiary management system.
     - if the user asks about which assembly you are created for or what assembly data you have then you must need to answer that you are created for the assembly name 163-Limbayat every time.(very important)
     - Not to mention about  assembly in every answer just repond when the userexplicity asks about it.
-
+    - If the user questions mentions any date wise operations then you need to say there is no such column available in the schema to filter beneficiaries on date basis in a very polite way to the user.
     Schema:
     {SCHEMA_TEXT}
 
@@ -266,34 +266,51 @@ CRITICAL RULES:
 - Use ONLY the schema
 - READ-ONLY queries only
 - NO SELECT *
-- Return ONLY valid SQL ending with semicolon
+- Return ONLY valid SQLite SQL ending with semicolon
 - Do NOT include markdown
-- Handle NULL values safely
+- Handle NULL values safely using IFNULL()
+
+SQLITE TEXT MATCHING RULES:
+- SQLite does NOT support ILIKE
+- Use LIKE with COLLATE NOCASE for case-insensitive matching
+
+Example:
+WHERE beneficiary_item_name LIKE '%AYUSHMAN BHARAT%' COLLATE NOCASE
 
 SCHEME FILTERING RULES (MANDATORY):
 - Scheme filters MUST use beneficiary_item_name
-- Use ILIKE with wildcards for scheme matching
+- Use LIKE with wildcards and COLLATE NOCASE for scheme matching
 - Use ONLY canonical scheme names
 - NEVER use raw user text
 
 Example (CORRECT):
-WHERE beneficiary_item_name ILIKE '%AYUSHMAN BHARAT%'
+WHERE beneficiary_item_name LIKE '%AYUSHMAN BHARAT%' COLLATE NOCASE
 
 Example (WRONG):
-WHERE beneficiary_item_name ILIKE '%ayushman card%'
+WHERE beneficiary_item_name LIKE '%ayushman card%'
 
 OTHER RULES:
-- Use ILIKE for all text comparisons
+- Use LIKE ... COLLATE NOCASE for all text comparisons
 - Use ID columns for grouping when applicable
 - AC filtering uses ac_no
 - Booth filtering uses booth or booth_name
-- When the user asks about date wise operations dont do using dob and doa columns because those are beneficiary date of birth and date of anniversary columns.
-- When they ask about date wise beneficiaries entires then you need to say there is not such column available in the schema to filter beneficiaries on date basis in a very polite way to the user.
-Common patterns:
+
+DATE RULES (STRICT):
+- When the user asks about date-wise operations:
+  - DO NOT use dob or doa columns (they are date of birth and anniversary)
+- If the user asks for date-wise beneficiary entries:
+  - Return a query-independent response:
+    "There is no date column available in the schema to filter beneficiaries by entry date."
+
+COMMON QUERY PATTERNS:
 SELECT COUNT(*) FROM beneficiary_master;
-SELECT booth_name, COUNT(*) FROM beneficiary_master GROUP BY booth_name;
+
+SELECT booth_name, COUNT(*) 
+FROM beneficiary_master 
+GROUP BY booth_name;
 
 Return ONLY SQL.
+
 Example:
 SELECT booth_name, COUNT(*) AS benf_count
 FROM beneficiary_master

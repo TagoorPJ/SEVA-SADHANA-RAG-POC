@@ -4,16 +4,27 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from agents import visitor_agent, hierarchy_agent, beneficiary_agent
 from pathlib import Path
-    
+from chat_memory import init_chat_table, save_message, get_last_messages
+
+# Create table automatically at startup
+init_chat_table()
+
 # =========================
 # LOAD ENVIRONMENT
 # =========================
 load_dotenv()
 def get_secret(key: str):
-    if key in st.secrets:
+    # 1️⃣ Try .env first (local development)
+    val = os.getenv(key)
+    if val:
+        return val
+
+    # 2️⃣ Try Streamlit Cloud secrets
+    try:
         return st.secrets[key]
-    return os.getenv(key)
- 
+    except Exception:
+        return None
+
 import base64
 
 def set_bg(image_file):
@@ -53,23 +64,115 @@ AZURE_DEPLOYMENT = get_secret("AZURE_OPENAI_DEPLOYMENT_NAME")
 st.set_page_config(
     page_title="SQL Assistant",
     page_icon="💬",
-    layout="centered"
+    layout="wide",
+    initial_sidebar_state="expanded"
+
 )
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent
 Image_path = BASE_DIR /"BJP (5).png"
+def get_base64_image(image_path):
+    import base64
+    with open(image_path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
 
 set_bg(Image_path)
+logo_path = BASE_DIR / "logo.png"
+logo_base64 = get_base64_image(logo_path)
+st.markdown(f"""
+<div class="top-right-logo">
+    <img src="data:image/png;base64,{logo_base64}">
+</div>
+""", unsafe_allow_html=True)
 
+def is_followup_question(question: str) -> bool:
+    followup_words = [
+        "how many",
+        "what about",
+        "same",
+        "and",
+        "also",
+        "count",
+        "total",
+        "then",
+        "for this",
+        "for that"
+    ]
+
+    q = question.lower()
+
+    return any(word in q for word in followup_words)
+def rewrite_followup(question: str):
+    if not st.session_state.last_question:
+        return question
+
+    prompt = f"""
+You are rewriting a follow-up question into a full standalone question.
+
+Previous question:
+{st.session_state.last_question}
+
+Follow-up question:
+{question}
+
+Return a complete rewritten question.
+Only return the rewritten sentence.
+"""
+
+    return ask_llm([{"role": "user", "content": prompt}])
 
 # Enhanced CSS for chat interface - Blue and White Theme
 st.markdown("""
 <style>
+/* ===== HIDE STREAMLIT DEFAULT HEADER ===== */
+/* Hide ONLY the 3 dots menu */
+button[kind="header"] {
+    display: none !important;
+}
+/* Hide all header buttons EXCEPT the sidebar toggle */
+}
+/* Hide bottom-right Manage app panel */
+[data-testid="stStatusWidget"] {
+    display: none !important;
+}
+div[aria-label="Manage app"] {
+    display: none !important;
+}
+
+/* Hide Deploy button */
+button[title="Deploy"] {
+    display: none !important;
+}
+
+/* ===== HIDE DEPLOY BUTTON ===== */
+button[title="Deploy"] {
+    display: none !important;
+}
+
+
+
+
+
     .stApp {
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
         background-attachment: fixed;
     }
+/* ===== TOP RIGHT COMPANY LOGO ===== */
+.top-right-logo {
+    position: fixed;
+    top: 60px;
+    right: 40px;
+    z-index: 9999;
+}
+
+.top-right-logo img {
+    height: 40px;            /* increase size */
+    border-radius: 20px;     /* round edges */
+    padding: 4px;            /* space inside */
+    background: rgba(255,255,255,0.15);  /* subtle glass effect */
+    backdrop-filter: blur(6px);
+}
 
 /* ===== MULTICOLOR HEADER (ORANGE → GREEN) ===== */
 [data-testid="stHeader"] {
@@ -234,12 +337,17 @@ st.markdown("""
         transition: left 0.25s ease;
     }
 
-    [data-testid="stSidebar"][aria-expanded="true"] ~ div .top-title {
+    [data-testid="stSidebar"][aria-expanded="true"] ~ div
+    .top-title {
+
+
         left: 300px;
     }
 
 /* TITLE CAPSULE INSIDE HEADER */
 .top-title {
+
+
     position: fixed;
     top: 14px;              /* inside header */
     left: 80px;             /* after sidebar arrow */
@@ -248,6 +356,8 @@ st.markdown("""
 
 /* Capsule style */
 .top-title .capsule {
+
+
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -346,8 +456,8 @@ st.markdown("""
 
     .sidebar-header {
         background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05));
-        padding: 16px 14px;
-        border-radius: 14px;
+        padding: 12px 10px;
+        border-radius: 16px;
         margin-bottom: 14px;
         border: 1px solid rgba(255,255,255,0.25);
         backdrop-filter: blur(6px);
@@ -356,14 +466,14 @@ st.markdown("""
 
     .sidebar-header-title {
         font-size: 18px;
-        font-weight: 700;
+        font-weight: 900;
         color: white;
-        margin-bottom: 2px;
+        margin-bottom: 5px;
     }
 
     .sidebar-header-sub {
-        font-size: 12px;
-        opacity: 0.85;
+        font-size: 16px;
+        opacity: 0.75;
     }
     
     /* ===== SIDEBAR TOGGLE BUTTON - CLOSED STATE ===== */
@@ -448,15 +558,11 @@ section[data-testid="collapsedControl"] svg {
 section[data-testid="collapsedControl"]:hover {
     background-color: #e66a00 !important;
 }
-[data-testid="collapsedControl"] {
-    opacity: 0;
-    pointer-events: none;
-}
 /* === REMOVE LARGE RESERVED SPACE BELOW CHAT INPUT === */
 
 .stChatFloatingInputContainer {
-    bottom: 8px !important;
-    padding-bottom: 0px !important;
+    bottom: 15px !important;
+    padding-bottom: 5px !important;
     padding-left: 20px !important;
     padding-right: 20px !important;
 }
@@ -464,9 +570,9 @@ section[data-testid="collapsedControl"]:hover {
 /* Kill the dark background layer */
 [data-testid="stBottom"] {
     background: transparent !important;
-    height: 0px !important;
-    min-height: 0px !important;
-    padding: 0px !important;
+    height: 10px !important;
+    min-height: 10px !important;
+    padding: 10px !important;
     margin: 0px !important;
 }
 
@@ -476,10 +582,13 @@ section[data-testid="collapsedControl"]:hover {
     padding: 0px !important;
     margin: 0px !important;
 }
+[data-testid="stHeader"] {
+    z-index: 99 !important;
+}
 
 /* This is the actual spacer creating the black band */
 .stChatFloatingInputContainer::before {
-    display: none !important;
+    display: auto !important;
 }
 /* ================= SIDEBAR TOP SPACE FIX ================= */
 
@@ -502,13 +611,9 @@ section[data-testid="stSidebar"]::before {
 .sidebar-header {
     position: relative;
     top: -30px;        /* lift upward */
-    margin-left: 18px; /* push right away from toggle button */
+    margin-left: 5px; /* push right away from toggle button */
 }
 /* ===== STOP PAGE SCROLL COMPLETELY ===== */
-html, body, .stApp {
-    height: 100%;
-    overflow: hidden !important;
-}
 
 /* Let Streamlit manage layout naturally */
 [data-testid="stAppViewContainer"] {
@@ -525,38 +630,23 @@ section[data-testid="stMain"] {
 }
 
 /* ===== CHAT MESSAGE CONTAINER - FIXED PADDING/BORDER ISSUE ===== */
-[data-testid="stChatMessageContainer"] {
-    margin-top: 140px !important;
-    padding-left: 30px !important;
-    padding-right: 30px !important;
-    padding-bottom: 20px !important;
-    height: calc(100vh - 260px) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    width: 100% !important;
-    box-sizing: border-box !important;
+.stChatFloatingInputContainer {
+    position: fixed !important;
+    bottom: 105px !important;
+    left: 0;
+    right: 0;
+    padding-left: 30px;
+    padding-right: 30px;
 }
 
 /* Smooth scroll behavior */
-[data-testid="stChatMessageContainer"] {
-    scroll-behavior: smooth;
-}
 
 /* Keep input fixed at bottom */
-.stChatFloatingInputContainer {
-    position: fixed !important;
-    bottom: 20px !important;
-    left: 0 !important;
-    right: 0 !important;
-    width: 100% !important;
-    padding-left: 30px !important;
-    padding-right: 30px !important;
-    box-sizing: border-box !important;
-}
+/* Fix chat input position */
 
 /* Make the page height stable */
 section[data-testid="stMain"] > div {
-    padding-bottom: 100px !important;
+    padding-bottom: 50px !important;
     width: 100% !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
@@ -568,6 +658,29 @@ section[data-testid="stMain"] > div {
     overflow: hidden;
 }
 
+
+</style>
+""", unsafe_allow_html=True)
+st.markdown("""
+<style>
+
+/* ===== Selected language button = GREEN ===== */
+[data-testid="stSidebar"] button[kind="primary"] {
+    background-color: #16a34a !important;
+    border: 1px solid #15803d !important;
+    color: white !important;
+}
+
+/* Hover state */
+[data-testid="stSidebar"] button[kind="primary"]:hover {
+    background-color: #15803d !important;
+}
+
+/* Unselected buttons stay orange */
+[data-testid="stSidebar"] button[kind="secondary"] {
+    background-color: #ff7a00 !important;
+    color: white !important;
+}
 
 </style>
 """, unsafe_allow_html=True)
@@ -597,9 +710,10 @@ def get_llm():
 llm_client = get_llm()
 
 def ask_llm(messages):
-    response = llm_client.invoke(messages)
+    history = get_last_messages(8)   # last 8 messages
+    full_messages = history + messages
+    response = llm_client.invoke(full_messages)
     return response.content
-
 # =========================
 # AGENT MAPPING
 # =========================
@@ -608,6 +722,44 @@ AGENTS = {
     "hierarchy": hierarchy_agent,
     "beneficiary": beneficiary_agent
 }
+def is_general_question(question: str) -> bool:
+    """
+    Returns True if the question is general and does NOT need DB.
+    """
+    prompt = f"""
+Classify the question.
+
+Return ONLY one word:
+
+GENERAL  → greetings, help, explanation, who are you, what can you do,
+            definitions, casual talk, non-database questions
+
+DATA     → anything asking for numbers, counts, lists, records,
+            visitors, booths, wards, assemblies, beneficiaries
+
+Question: "{question}"
+"""
+
+    response = ask_llm([{"role": "user", "content": prompt}])
+    label = response.strip().upper()
+
+    return "GENERAL" in label
+
+
+def answer_general_question(question: str) -> str:
+    """
+    Direct LLM response for general questions.
+    No SQL involved.
+    """
+    prompt = f"""
+You are a helpful AI assistant for a Constituency data system.
+
+Answer clearly and briefly.
+
+User question:
+{question}
+"""
+    return ask_llm([{"role": "user", "content": prompt}])
 
 # =========================
 # DETECT AGENT
@@ -682,8 +834,10 @@ def execute_query(agent_key, question):
             "success": True,
             "answer": answer,
             "columns": columns,
-            "rows": rows
+            "rows": rows,
+            "sql": sql   
         }
+
         
     except Exception as e:
         return {
@@ -701,6 +855,14 @@ if "show_welcome" not in st.session_state:
 
 if "show_data" not in st.session_state:
     st.session_state.show_data = False
+if "last_sql" not in st.session_state:
+    st.session_state.last_sql = None
+
+if "last_question" not in st.session_state:
+    st.session_state.last_question = None
+
+if "last_agent" not in st.session_state:
+    st.session_state.last_agent = None
 
 # =========================
 # UI
@@ -761,6 +923,7 @@ user_input = st.chat_input("Ask me anything about visitors, booths, or beneficia
 if user_input:
     st.session_state.show_welcome = False
     st.session_state.messages.append({"role": "user", "content": user_input})
+    save_message("user", user_input)
     st.session_state.processing = True
     st.session_state.pending_question = user_input
     st.rerun()
@@ -770,28 +933,55 @@ if st.session_state.get("processing", False):
 
     question = st.session_state.pending_question
 
+# Detect follow-up
+    if is_followup_question(question) and st.session_state.last_question:
+        question = rewrite_followup(question)
+
+
     with st.spinner("🔍 Analyzing your question…"):
-        agent_key = detect_agent(question)
-        result = execute_query(agent_key, question)
 
-        if result["success"]:
+        # 1️⃣ Check if general question (NO SQL)
+        if is_general_question(question):
+
+            answer = answer_general_question(question)
+
             message_data = {
                 "role": "assistant",
-                "content": result["answer"]
+                "content": answer
             }
 
-            if "columns" in result and "rows" in result:
-                message_data["data"] = {
-                    "columns": result["columns"],
-                    "rows": result["rows"]
-                }
+        # 2️⃣ Otherwise go to agents
         else:
-            message_data = {
-                "role": "assistant",
-                "content": f"I encountered an error: {result['error']}"
-            }
+            agent_key = detect_agent(question)
+            result = execute_query(agent_key, question)
+
+            if result["success"]:
+                message_data = {
+                    "role": "assistant",
+                    "content": result["answer"]
+                }
+                st.session_state.last_sql = result.get("sql", None)
+                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                print("LAST SQL:", st.session_state.last_sql)
+                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                st.session_state.last_question = question
+                st.session_state.last_agent = agent_key
+
+
+                if "columns" in result and "rows" in result:
+                    message_data["data"] = {
+                        "columns": result["columns"],
+                        "rows": result["rows"]
+                    }
+
+            else:
+                message_data = {
+                    "role": "assistant",
+                    "content": f"Sorry, I couldn’t find that information with the available data. Could you rephrase your question? and try again please."
+                }
 
     st.session_state.messages.append(message_data)
+    save_message("assistant", message_data["content"])
     st.session_state.processing = False
     st.rerun()
 
@@ -803,16 +993,59 @@ with st.sidebar:
     <div class="sidebar-header-sub">AI-powered data assistant</div>
 </div>
 """, unsafe_allow_html=True)
+    # ===== LANGUAGE TOGGLE (INSTANT COLOR UPDATE) =====
+    st.markdown("### 🌐 Language")
+
+    col1, col2 = st.columns(2)
+
+    if "lang" not in st.session_state:
+        st.session_state.lang = "English"
+
+    eng_type = "primary" if st.session_state.lang == "English" else "secondary"
+    hin_type = "primary" if st.session_state.lang == "हिन्दी" else "secondary"
+
+    with col1:
+        if st.button("English", use_container_width=True, type=eng_type):
+            if st.session_state.lang != "English":
+                st.session_state.lang = "English"
+                st.rerun()
+
+    with col2:
+        if st.button("हिन्दी", use_container_width=True, type=hin_type):
+            if st.session_state.lang != "हिन्दी":
+                st.session_state.lang = "हिन्दी"
+                st.rerun()
+
+    lang = st.session_state.lang
 
     
     # Info section
     st.markdown("### ℹ️ About")
-    st.markdown("""
-    This assistant can answer questions about:
-    - 👥 **Visitors** - Visit records and work status
-    - 🏛️ **Hierarchy** - Booths, wards, constituencies
-    - 🎯 **Beneficiaries** - Beneficiary data and categories
+
+    if lang == "English":
+        st.markdown("""
+    This AI-powered Constituency Assistant helps you quickly explore and understand key operational data across the constituency ecosystem. It can answer natural-language questions and provide insights related to:
+
+    👥 **Visitors** – Track visit records, reasons for visits, task status, average task durations, and work status updates.
+
+    🏛️ **Hierarchy** – Access details about booths, wards, assemblies, and constituency structure.
+
+    🎯 **Beneficiaries** – Explore beneficiary schemes, categories, and related information.
+
+    Ask questions in simple language, and the assistant will fetch relevant data, summarize insights, and support follow-up queries for deeper analysis.
     """)
-    
+
+    else:
+        st.markdown("""
+    यह AI-संचालित Constituency Assistant आपको निर्वाचन क्षेत्र से जुड़े महत्वपूर्ण संचालनात्मक डेटा को तेज़ी से समझने और खोजने में मदद करता है। यह सामान्य भाषा में पूछे गए प्रश्नों का उत्तर देता है और निम्न विषयों से संबंधित उपयोगी जानकारी प्रदान करता है:
+
+    👥 **विज़िटर्स** – विज़िट रिकॉर्ड, विज़िट के कारण, कार्य की स्थिति, औसत कार्य अवधि और कार्य प्रगति की जानकारी ट्रैक करें।
+
+    🏛️ **हाइरार्की** – बूथ, वार्ड, विधानसभा और निर्वाचन क्षेत्र की संरचना से जुड़ी विस्तृत जानकारी प्राप्त करें।
+
+    🎯 **लाभार्थी** – विभिन्न योजनाओं, लाभार्थी श्रेणियों और संबंधित विवरणों को आसानी से जानें।
+
+    आप सरल भाषा में प्रश्न पूछें, यह सहायक संबंधित डेटा खोजकर, उसका सार प्रस्तुत करेगा और आगे के प्रश्नों के माध्यम से गहराई से विश्लेषण करने में आपकी मदद करेगा।
+    """)
     st.markdown("---")
     st.caption("Version 1.0")

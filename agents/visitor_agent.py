@@ -250,6 +250,9 @@ Common patterns:
 - Filter by date: WHERE vis_date_clean BETWEEN '2024-01-01' AND '2024-12-31'
 - Filter by AC: WHERE ac_no = 163
 - Recent visitors: ORDER BY vis_added_datetime DESC
+- When extracting year from date, use:
+  STRFTIME('%Y', column_name)
+- Use WHERE column_name IS NOT NULL before grouping by date
 
 Example format:
 SELECT booth_name, COUNT(*) as visitor_count 
@@ -385,6 +388,8 @@ Instructions:
 - If there are many rows, summarize the key insights
 - Do NOT invent or assume data not in the results
 - For visitor data, provide context (e.g., "163 visitors" instead of just "163")
+- If the data retrived contains the reasons categories then you need add the noise/system errors category as others and unmapped reason and give the sum of the those categories as one category and give all the other categories as it is.
+and above point must be mentioned as a last point in the answer if the reasons categories are there in the data retrived.(critical)
 Example formats:
 - For counts: "There are 163 visitors from booth 2-Umrvada-2"
 - For lists: "The top 3 booths by visitor count are..."
