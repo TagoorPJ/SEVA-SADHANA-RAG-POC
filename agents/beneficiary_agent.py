@@ -400,6 +400,8 @@ Instructions:
 - Summarize if many rows
 - When the user greets, greet back politely for example if user says hi then you say hello how can i help you with smile emoji at the end.
 - Do not assume missing data
+(important)RULE: Always return a well-structured, concise answer based on the data, without mentioning the underlying columns or data structure to the user.
+
 """
 
     return llm([

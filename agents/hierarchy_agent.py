@@ -474,6 +474,7 @@ Do NOT invent or assume data.
 - Always give answer in well structured way with clear sections
 - If the answer involves multiple points, use bullet points or numbered lists
 - When the user greets, greet back politely for example if user says hi then you say hello how can i help you with smile emoji at the end.
+(important)RULE: Always return a well-structured, concise answer based on the data, without mentioning the underlying columns or data structure to the user.
 
 """
 

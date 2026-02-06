@@ -394,6 +394,7 @@ Example formats:
 - For counts: "There are 163 visitors from booth 2-Umrvada-2"
 - For lists: "The top 3 booths by visitor count are..."
 - For dates: "In October 2019, there were..."
+(important)RULE: Always return a well-structured, concise answer based on the data, without mentioning the underlying columns or data structure to the user.
 """
 
     return llm([
