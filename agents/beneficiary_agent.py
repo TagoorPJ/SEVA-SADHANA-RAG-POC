@@ -5,7 +5,7 @@ import sqlglot
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 import sqlite3
-
+from pathlib import Path
 # =========================
 # ENV
 # =========================
