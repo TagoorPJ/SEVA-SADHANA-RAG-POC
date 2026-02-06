@@ -1,0 +1,10 @@
+env/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+restored_db.db
+load_beneficiary_data.py
+load_hierarchy_data.py
+load_visiters_data.py
+pg_to_sqlite.py
