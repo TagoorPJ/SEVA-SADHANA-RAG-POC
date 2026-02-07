@@ -787,13 +787,14 @@ If the user mention under which MP these assemblies or whose is the Mp of these 
 -If the user question contains reasons or reason categories it must need to return VISITOR.
 -when the user asks about incharges names and how many booths or wards or shakthi kendras are assigned to which incharge then you must need to return HIERARCHY.
 -when the user asks about schems and incharges in one question then you must need to return BENEFICIARY.
-
-
+-If the user asks about booths wise visiter counts or assembly vise visitor counts and wars vise and shakthi kendra vise visitor counts then you must need to return VISITOR.
+-If the user asks about booth wise, ward wise, shakthi kendra wise, assembly wise, constituency wise, MP wise beneficiaries details then you must need to return BENEFICIARY.
+-If the user asks about unique visitors count then you must need to return VISITOR.
 Question: "{question}
 
 Rules:
 - If the user question is greeting then instantly pass to VISITOR agent
-- VISITOR: Questions about visitors, visits, work status, visitor details
+- VISITOR: Questions about visitors, visits, work status, visitor details,date wise operations.
 - HIERARCHY: Questions about booths, wards, constituencies, AC, administrative structure
 - BENEFICIARY: Questions about beneficiaries,schemes,beneficiary benifts,beneficiary items, beneficiary categories, beneficiary details
 Return ONLY:VISITOR, HIERARCHY, or BENEFICIARY

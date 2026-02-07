@@ -168,6 +168,9 @@ Schema:
 
 Rules:
 Hierarchy is first assembly then ward then shaktikendra then booth.(very important)
+-If the user question is about unique visitors count then youmust need to use vis_contact_no column for counting unique visitors.
+-If the user question is about reasons or reason categories then you must need to provide plan based
+
 - Use ONLY the schema above
 - Do NOT write SQL
 - Return ONLY valid JSON
